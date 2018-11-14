@@ -1,17 +1,99 @@
 
-#include "debug.h"
+#include <string.h>
 
-int newDeviceAdd(device_t *pDev)
+#include "debug.h"
+#include "device_main.c"
+
+/* library */
+#include "libipc/ipcType.h"
+#include "libcore/timer.h"
+
+static device_info_t *device_head = NULL;
+
+device_t *device_find(unsigned char *sn, device_info_t *head)
 {
-	debug("device", "Now add device ... ");
+	device_info_t *p = head;
+
+	while (p)
+	{
+		if (!memcmp(sn, p->sn, DEVICE_SN_LEN))
+		{
+			return p;
+		}
+		
+		p = p->next;
+	}
+
+	return NULL;
+}
+
+device_info_t *device_add(device_info_t **phead, device_t *pDev)
+{
+	device_info_t *p = (device_info_t *)malloc(sizeof(device_info_t));
+
+	if (!p)
+	{
+		debug("device", "Failed to add device, Malloc(%d) Failed\n", sizeof(device_info_t));
+		return -1;
+	}
+
+	/* clean malloc memory */
+	memset(p, 0, sizeof(*p));
+
+	/* fill data */
+	memcpy(p->sn, pDev->sn, sizeof(p->sn));
+
+	/* insert to list */
+	if (*phead == NULL)
+	{
+		*phead = p;
+	}
+	else
+	{
+		p->next = *phead;
+		*phead = p;
+	}
+
+	return 0;
+}
+
+int debug_cmd_send(void *data, int reason)
+{
+	device_info_t *info = (device_info_t *)data;
+
+	if (!info)
+	{
+		return TIMER_REMOVE;
+	}
+
+	
+}
+
+int newDeviceAdd(int fd, device_t *pDev)
+{
+	debug("device", "Now add device ... \n");
 
 	/* check if the device is exist */
-
+	if (device_find(pDev->sn, device_head))
+	{
+		debug("device", "Device already exists!\n");
+		return 0;
+	}
+	
 	/* add device */
+	device_info_t *pdev_info = NULL;
+	if ((pdev_info=device_add(&device_head, pDev)) != NULL)
+	{
+		debug("device", "Failed to add device");
+		return -1;
+	}
+	else
+	{
+		debug("device", "Add device success\n");
+	}
 
-	debug("device", "Add device success");
-
-	/* register timer handle to send command to device */
+	/* JUST FOR DEBUG : register timer handle to send command to device */
+	timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);
 	
 	return 0;
 }
@@ -29,7 +111,7 @@ static void ipcDeviceConfigEntry(int fd, int op, ipcPacket_t *request)
                 
                 pDev = ipcData(request, typeof(device_t));
 				
-				newDeviceAdd(pDev);
+				newDeviceAdd(fd, pDev);
                 
                 ipcAck(IPC_STATUS_OK);
             }
