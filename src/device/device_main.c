@@ -27,7 +27,7 @@ device_t *device_find(unsigned char *sn, device_info_t *head)
 	return NULL;
 }
 
-device_info_t *device_add(device_info_t **phead, device_t *pDev)
+device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 {
 	device_info_t *p = (device_info_t *)malloc(sizeof(device_info_t));
 
@@ -41,7 +41,9 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev)
 	memset(p, 0, sizeof(*p));
 
 	/* fill data */
+	p->fd = fd;
 	memcpy(p->sn, pDev->sn, sizeof(p->sn));
+	
 
 	/* insert to list */
 	if (*phead == NULL)
@@ -57,16 +59,46 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev)
 	return 0;
 }
 
+static int read_device(int fd)
+{ 
+
+    debug("read_device", "Send read_device command to device len (%d)", len);
+    
+    return 0;
+}
+
+int ipc_cmd_get_temperature(device_info_t *info)
+{
+	/* prepare data */
+    /* send read device cmd to device */
+    char msgbuffer[256];
+    int channel = 0;
+    int slave_addr = 0;
+    int function_code = 0;
+    int reg_addr = 0;
+    int reg_num = 0;
+    int value_len = 0;
+    int value = 0;
+
+    int len = sprintf(msgbuffer, sizeof(msgbuffer), "{'SN':111111111111,'DESSET':1,%d,%d,%d,%d,%d,%d,%d}",channel, slave_addr, function_code, reg_addr, reg_num, value_len, value);
+
+    int len = write(fd,msgbuffer,strlen(msgbuffer));
+	get_temperature_cmd_()
+}
+
 int debug_cmd_send(void *data, int reason)
 {
 	device_info_t *info = (device_info_t *)data;
 
 	if (!info)
 	{
+		debug("device", "Device info is NULL!!");
 		return TIMER_REMOVE;
 	}
 
+	ipc_cmd_get_temperature(info);
 	
+	return TIMER_REMOVE;
 }
 
 int newDeviceAdd(int fd, device_t *pDev)
@@ -82,7 +114,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 	
 	/* add device */
 	device_info_t *pdev_info = NULL;
-	if ((pdev_info=device_add(&device_head, pDev)) != NULL)
+	if ((pdev_info=device_add(&device_head, pDev, fd)) != NULL)
 	{
 		debug("device", "Failed to add device");
 		return -1;
@@ -177,45 +209,6 @@ static void ipcDeviceConfigEntry(int fd, int op, ipcPacket_t *request)
                 free(pConfigs);
             }            
             break;
-            
-        case IPC_OP_SET1:
-            {   
-                int num = 0;
-                gmrpPortConfig_t *pConfigs = NULL;
-
-                num = ipcItemNum(request);
-                pConfigs = ipcData(request, typeof(pConfigs));
-
-                if (!ipcSizeCheck(request, sizeof(*pConfigs), num) || num <= 0)
-                {
-                    ipcAck(IPC_STATUS_ARGV);
-                    return;
-                }
-
-                /* config set */
-                ret = gmrpPortConfigSet(pConfigs, num);
-
-				if (ret <= 0)
-				{
-					if (ret == -1)
-					{
-						ipcAck(IPC_STATUS_GMRP_NOT_ENABLED);				
-					}
-					else
-					{
-						ipcAck(IPC_STATUS_ARGV);		
-					}
-					return ;
-				}
-
-                ipcAck(IPC_STATUS_OK);
-            }
-            break;
-		case IPC_OP_GET2:		//get dynamic multicast entrys
-			break;
-
-		case IPC_OP_NUM:		//get dynamic multicast entry num
-			break;
 
         default:
             ipcAck(IPC_STATUS_ARGV);
