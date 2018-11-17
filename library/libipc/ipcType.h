@@ -112,7 +112,9 @@ typedef enum
     IPC_OP_USR8,
     IPC_OP_USR9,
     IPC_OP_USR10,
-    
+
+	IPC_OP_UPLOAD_DATA,
+	
     IPC_OP_END
 }ipcOp_t;
 

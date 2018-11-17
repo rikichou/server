@@ -10,7 +10,7 @@
 
 static device_info_t *device_head = NULL;
 
-device_t *device_find(unsigned char *sn, device_info_t *head)
+device_t *device_find_by_sn(unsigned char *sn, device_info_t *head)
 {
 	device_info_t *p = head;
 
@@ -26,6 +26,24 @@ device_t *device_find(unsigned char *sn, device_info_t *head)
 
 	return NULL;
 }
+
+device_t *device_find_by_fd(int fd, device_info_t *head)
+{
+	device_info_t *p = head;
+
+	while (p)
+	{
+		if (fd == p->sn)
+		{
+			return p;
+		}
+		
+		p = p->next;
+	}
+
+	return NULL;
+}
+
 
 device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 {
@@ -59,33 +77,6 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 	return 0;
 }
 
-static int read_device(int fd)
-{ 
-
-    debug("read_device", "Send read_device command to device len (%d)", len);
-    
-    return 0;
-}
-
-int ipc_cmd_get_temperature(device_info_t *info)
-{
-	/* prepare data */
-    /* send read device cmd to device */
-    char msgbuffer[256];
-    int channel = 0;
-    int slave_addr = 0;
-    int function_code = 0;
-    int reg_addr = 0;
-    int reg_num = 0;
-    int value_len = 0;
-    int value = 0;
-
-    int len = sprintf(msgbuffer, sizeof(msgbuffer), "{'SN':111111111111,'DESSET':1,%d,%d,%d,%d,%d,%d,%d}",channel, slave_addr, function_code, reg_addr, reg_num, value_len, value);
-
-    int len = write(fd,msgbuffer,strlen(msgbuffer));
-	get_temperature_cmd_()
-}
-
 int debug_cmd_send(void *data, int reason)
 {
 	device_info_t *info = (device_info_t *)data;
@@ -96,7 +87,12 @@ int debug_cmd_send(void *data, int reason)
 		return TIMER_REMOVE;
 	}
 
-	ipc_cmd_get_temperature(info);
+	int ret = ipc_device_main_set(info);
+
+	if (ret != IPC_STATUS_OK)
+	{
+		debug("device", "Failed to send debug cmd to device!");
+	}
 	
 	return TIMER_REMOVE;
 }
@@ -106,7 +102,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 	debug("device", "Now add device ... \n");
 
 	/* check if the device is exist */
-	if (device_find(pDev->sn, device_head))
+	if (device_find_by_sn(pDev->sn, device_head))
 	{
 		debug("device", "Device already exists!\n");
 		return 0;
@@ -130,6 +126,61 @@ int newDeviceAdd(int fd, device_t *pDev)
 	return 0;
 }
 
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+int debug_message_save(unsigned char *sn, char *msg, int size)
+{
+	char buffer[256];
+	struct tm  *tp; 
+	time_t t = time(NULL);	
+	tp = localtime(&t);
+
+	int len = sprintf(buffer, "%d/%d/%d %d:%d:%d %s\n", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour,tp->tm_min,tp->tm_sec, msg);
+
+	/* file name */
+	char file_name[64];
+	sprintf(file_name, "%02x%02x%02x%02x%02x%02x", sn[0], sn[1], sn[2], sn[3], sn[4], sn[5]);
+
+	/* save to file */
+	in fd = open(file_name, O_WRONLY|O_CRAET);
+
+	if (fd < 0)
+	{
+		debug("device", "Failed to open log file (%d)%s", fd, file_name);
+		return -1;
+	}
+
+	int ret = write(fd, buffer, len);
+
+	if (ret < 0)
+	{
+		close(fd);
+		debug("device", "Failed to write log to log file (%d)%s", ret, file_name);
+		return -1;
+	}
+	
+	close(fd);
+	return 0;
+}
+
+void debug_info_deal(int fd, char *msgbuffer, int size)
+{
+	/* get device info */
+	device_info_t *device = device_find_by_fd(fd, device_head);
+
+	if (!device)
+	{
+		debug("device", "Failed to find device by fd : %d", fd);
+		return ;
+	}
+
+	/* save message buffer */
+	debug_message_save(device->sn, msgbuffer, size);
+}
+
 static void ipcDeviceConfigEntry(int fd, int op, ipcPacket_t *request)
 {
     int ret;
@@ -148,68 +199,22 @@ static void ipcDeviceConfigEntry(int fd, int op, ipcPacket_t *request)
                 ipcAck(IPC_STATUS_OK);
             }
             break;
-            
-        case IPC_OP_SET:
+        /* device upload data to server */
+        case IPC_OP_UPLOAD_DATA:
             {
-                gmrpConfig_t *pConfig;
+				/* get data size */
+				int size = ipcDataSize(request);
+				
+                /* get data info */
+				char *msgbuffer;
+                msgbuffer = ipcData(request, typeof(msgbuffer));
                 
-                pConfig = ipcData(request, typeof(pConfig));
-                
-                gmrpConfigSet(pConfig);
-                
+                /* deal data */
+				debug_info_deal(fd, msgbuffer, size);
+				
                 ipcAck(IPC_STATUS_OK);
             }
             break;
-		/* gmrp port config */
-        case IPC_OP_GET1:		
-            {
-                int num = 0;
-                portMask_t *ports;
-                gmrpPortConfig_t *pConfigs = NULL;
-                
-                ports = ipcData(request, typeof(ports));
-                num = portMaskNum(ports);
-
-                if (num <= 0)
-                {
-                    ipcAck(IPC_STATUS_ARGV);
-                    return ;
-                }
-                pConfigs = (gmrpPortConfig_t *)malloc(sizeof(*pConfigs) * num);
-                
-                if (pConfigs == NULL)
-                {
-                    debugf("malloc", "malloc(%d)", sizeof(*pConfigs) * num);
-                    ipcAck(IPC_STATUS_NOMEM);
-                    return; 
-                }
-
-                /* get configs */
-                int p = 0, count = 0;
-                for (p = 0; ((p = portMaskGetNext(ports, p)) >= 0) && (count < num); p ++)
-                {
-					if (p == PORT_CPU)
-					{
-						continue;
-					}
-				
-                    ret = gmrpPortConfigGet(p, &pConfigs[count]);
-
-                    if (ret == 0)
-                    {
-                        ipcAck(IPC_STATUS_OP_FAILED);
-                        free(pConfigs);
-                        return;
-                    }
-
-                    count ++;
-                }
-
-                ipcResponse(fd, request, IPC_STATUS_OK, sizeof(*pConfigs), count, pConfigs);
-                free(pConfigs);
-            }            
-            break;
-
         default:
             ipcAck(IPC_STATUS_ARGV);
             break;
