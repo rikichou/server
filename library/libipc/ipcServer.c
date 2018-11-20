@@ -9,6 +9,7 @@
 
 #include "ipc.h"
 #include "ipcServer.h"
+#include "libcjson/cJSON.h"
 
 #include <systemHelper.h>
 
@@ -61,6 +62,54 @@ int ipcAccept(int sock)
     }
 
     return fd;
+}
+
+int ipcDeviceResponse(int sock, char *json)
+{
+	uint32_t ackSize = strlen(json);
+
+	int ret = send(sock, json, ackSize, 0);
+	
+	while((ret == -1) && (errno == EINTR))
+	{
+		ret = send(sock, json, ackSize, 0);	
+	}
+	    
+    if (ret != ackSize)
+    {
+        debug("ipc", "send (socket=%d, size=%d) return %d", sock, ackSize, ret);
+    }
+   
+    return ret;	
+}
+
+int ipcDeviceSimpleResponse(int sock, int status)
+{
+	/* get response json code */
+	cJSON *root =cJSON_CreateObject();
+
+	if (!root)
+	{
+		debug("ipc", "Failed to get root object!");
+		return -1;
+	}
+	
+	cJSON_AddNumberToObject(root, "packetType", IPC_RESPONSE);
+	cJSON_AddNumberToObject(root, "ack", status);
+
+	/* send json */
+	char *jsonString = cJSON_Print(root);
+	
+	int ret = ipcDeviceResponse(sock, jsonString);
+
+	if (jsonString)
+	{
+		free(jsonString);
+	}
+
+	cJSON_Delete(root);
+
+	return ret;
 }
 
 int ipcResponse
@@ -152,6 +201,8 @@ int ipcResponse
 /* variables */
 struct ipcHandleList *s_ipcHandleHead[257] = { NULL };
 static int s_ipcSocket = -1;
+static int s_ipcDeviceSocket = -1;
+
 
 
 struct ipcConnection
@@ -492,3 +543,172 @@ void ipcExit(const char * name)
     ipcHandleRemoveAll();
     ipcConnectionClean(1);    
 }
+
+// ****************************************************  ipc for device
+
+int ipcDeviceSocketInit(void)
+{
+	int sockfd, addrlen, confd, len, i;
+	struct sockaddr_in serveraddr;
+
+	/* 1. socket */
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(sockfd < 0) 
+	{		 
+		debug("ipc", "call socket() return : %s(%d)", strerror(errno), errno);
+		return -1;
+	}
+
+	/* 2. binding server addr */
+	bzero(&serveraddr, sizeof(serveraddr));
+	serveraddr.sin_family = AF_INET;
+	serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serveraddr.sin_port = htons(IPC_SERVER_DEVICE_PORT);
+	
+	bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+ 
+	/* 3. listen */
+	if(listen(sockfd, IPC_LISTEN_QUEUE_LEN) < 0) 
+	{
+		debug("ipc", "call listen() return: %s", strerror(errno));
+		return -1;
+	}
+
+	return sockfd;
+}
+
+static void ipcDevicePacketProcess(void *data)
+{
+	/* receive data */
+	int ret;
+	char buff[IPC_MSG_MAX_SIZE];
+	ipcConnection_t *ipc = data;
+
+    if (ipc == NULL)
+    {
+    	debug("ipc", "data is NULL!");
+        return ;
+    }
+	
+    if ((ret=recv(ipc->fd, buff, sizeof(buff), 0)) < 0) 
+    {
+        debug("ipc", "recv() return (%d)", ret);
+        return;
+    } 	
+
+	/*
+		process packet by json
+	*/
+    cJSON * root = NULL;
+    cJSON * item = NULL;
+
+	root = cJSON_Parse(buff);
+
+	if (!root)
+	{
+		debug("ipc", "Failed to parse JSON : %s", buff);
+		return;
+	}
+
+	debug("ipc", "%s", cJSON_Print(root));
+
+	/*
+		check packet type
+	*/
+	item = cJSON_GetObjectItem(root, "packetType");
+		
+	if (!item)
+	{
+		cJSON_Delete(root);
+		debug("ipc", "Failed to get packetType from packet!");
+		return ;
+	}
+
+	if (item->valueint != IPC_REQUEST)
+	{
+		cJSON_Delete(root);
+		debug("ipc", "Received RESPONSE type packet!");
+		return ;
+	}
+
+	/*
+		get command, and find recall
+	*/
+	ipcHandle_t function;
+	
+	item = cJSON_GetObjectItem(root, "command");
+	
+	if (!item)
+	{
+		cJSON_Delete(root);
+		debug("ipc", "Failed to get cmd from packet!");
+		return ;
+	}
+
+    function = ipcHandleGet(item->valuestring);
+
+    if (function)
+    {
+    	item = cJSON_GetObjectItem(root, "operation");
+
+		if (!item)
+		{
+			cJSON_Delete(root);
+			debug("ipc", "Failed to get operation from packet!");
+			return ;
+		}
+		
+        function(ipc->fd, item->valueint, (void *)root);
+    }
+    else 
+    {
+        debug("ipc", "Unknown command(%s), please check!", (const char *)item->valuestring);
+        
+        //ipcResponse(ipc->fd, (ipcPacket_t *)&hdr, IPC_STATUS_UNDEF, 0, 0, NULL);        
+    }
+
+	cJSON_Delete(root);
+}
+
+
+void ipcDeviceReceive(void *data)
+{
+    int fd;
+    char name[128];
+    ipcConnection_t *client = NULL;    
+    
+    fd = ipcAccept(s_ipcDeviceSocket);
+
+    if (fd < 0)
+    {
+        debug("ipc", "ipcAccept(%d) failed", s_ipcDeviceSocket);
+        return ;
+    }
+    
+    client = (ipcConnection_t *)malloc(sizeof(ipcConnection_t));
+    if (client == NULL)
+    {
+        debugf("malloc", "malloc(%d) failed", sizeof(ipcConnection_t));
+        close(fd);
+        return ;
+    }
+    
+    debug("ipc", "ipcAccept(%d) return name:%s", s_ipcSocket, name);
+    
+    client->fd = fd;
+    client->name = strdup(name);       
+    client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcPacketProcess);
+    client->next= s_ipcConnectionHead;
+    s_ipcConnectionHead = client;      
+}
+
+void ipcDeviceStart(const char * name)
+{
+	s_ipcDeviceSocket = ipcDeviceSocketInit();
+	assert(s_ipcDeviceSocket >= 0, "Failed to init IPC socket on %s", name); 
+	debug("ipc", "Open IPC socket(%d) on %s", s_ipcDeviceSocket, name);
+
+	threadAddListeningFile("sys.ipc", s_ipcDeviceSocket, NULL, ipcReceive);
+}
+

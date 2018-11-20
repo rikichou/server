@@ -275,6 +275,25 @@ inline uint32_t ipcHash(const char *str)
     return hash;
 }
 
+/* TODO ... add wait response */
+int ipcDeviceRequest(int sock, char *json)
+{
+	uint32_t len = strlen(json);
+
+	int ret = send(sock, json, len, 0);
+	
+	while((ret == -1) && (errno == EINTR))
+	{
+		ret = send(sock, json, len, 0);	
+	}
+	    
+    if (ret != len)
+    {
+        debug("ipc", "send (socket=%d, size=%d) return %d", sock, len, ret);
+    }
+   
+    return ret;	
+}
 
 /*
  send a message 

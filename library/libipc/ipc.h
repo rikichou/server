@@ -52,6 +52,8 @@ Description  :
 #define IPC_LISTEN_QUEUE_LEN  64  /* server listening queue num */
 
 #define IPC_SERVER_PORT 8888
+#define IPC_SERVER_DEVICE_PORT 8888
+
 
 //inline uint32_t ipcHash(const char *str);
 

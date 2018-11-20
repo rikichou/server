@@ -46,8 +46,7 @@ int ipcResponse
 #define ipcSimpleAck(fd, req, status) ipcResponse(fd, req, status, 0, 0, NULL)
 
 
-
-typedef void (*ipcHandle_t)(int fd, int op, ipcPacket_t *request);
+typedef void (*ipcHandle_t)(int fd, int op, void *request);
 
 struct ipcHandleList
 {
@@ -76,6 +75,7 @@ int ipcClientsProcessId(int *pids, int size);
     ipc quick macros 
 */
 #define ipcAck(status) ipcSimpleAck(fd, request, status)
+#define ipcDeviceAck(status) ipcDeviceSimpleResponse(fd, status)
 
 
 #endif /* __IPCSERVER_H__ */

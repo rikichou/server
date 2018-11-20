@@ -7,16 +7,17 @@
 /* library */
 #include "libipc/ipcType.h"
 #include "libcore/timer.h"
+#include "libcjson/cJSON.h"
 
 static device_info_t *device_head = NULL;
 
-device_t *device_find_by_sn(unsigned char *sn, device_info_t *head)
+device_t *device_find_by_sn(char sn[DEVICE_SN_LEN*2+1], device_info_t *head)
 {
 	device_info_t *p = head;
 
 	while (p)
 	{
-		if (!memcmp(sn, p->sn, DEVICE_SN_LEN))
+		if (!memcmp(sn, p->sn, DEVICE_SN_LEN*2))
 		{
 			return p;
 		}
@@ -117,7 +118,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 	}
 	else
 	{
-		debug("device", "Add device success\n");
+		debug("device", "Add device success");
 	}
 
 	/* JUST FOR DEBUG : register timer handle to send command to device */
@@ -131,21 +132,21 @@ int newDeviceAdd(int fd, device_t *pDev)
 #include <sys/stat.h>
 #include <fcntl.h>
 
-int debug_message_save(unsigned char *sn, char *msg, int size)
+int debug_message_save(char sn[DEVICE_SN_LEN*2+1], int temperature)
 {
 	char buffer[256];
 	struct tm  *tp; 
 	time_t t = time(NULL);	
 	tp = localtime(&t);
 
-	int len = sprintf(buffer, "%d/%d/%d %d:%d:%d %s\n", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour,tp->tm_min,tp->tm_sec, msg);
+	int len = sprintf(buffer, "%d/%d/%d %d:%d:%d %d\n", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour,tp->tm_min,tp->tm_sec, temperature);
 
 	/* file name */
 	char file_name[64];
-	sprintf(file_name, "%02x%02x%02x%02x%02x%02x", sn[0], sn[1], sn[2], sn[3], sn[4], sn[5]);
+	sprintf(file_name, "%s.log", sn);
 
 	/* save to file */
-	in fd = open(file_name, O_WRONLY|O_CRAET);
+	in fd = open(file_name, O_WRONLY|O_CRAET|O_APPEND);
 
 	if (fd < 0)
 	{
@@ -166,57 +167,94 @@ int debug_message_save(unsigned char *sn, char *msg, int size)
 	return 0;
 }
 
-void debug_info_deal(int fd, char *msgbuffer, int size)
+int debug_info_deal(int fd, cJSON *root)
 {
-	/* get device info */
-	device_info_t *device = device_find_by_fd(fd, device_head);
-
-	if (!device)
+	device_t device;
+	
+	/* get sn code */
+	cJSON *item = cJSON_GetObjectItem(root, "sn");
+	
+	if (!item)
 	{
-		debug("device", "Failed to find device by fd : %d", fd);
-		return ;
+		debug("device", "No sn code!");
+		return -1;
+	}
+	
+	strncpy(device.sn, item->valuestring, sizeof(device.sn));
+
+	/* check if the device is exist */
+	if (device_find_by_sn(device.sn, device_head) == NULL)
+	{
+		debug("device", "Device not exists!\n");
+		return -2;
 	}
 
+	/* get temperature */
+	item = cJSON_GetObjectItem(root, "temperature");
+
+	if (!item)
+	{
+		debug("device", "No temperature!");
+		return -3;
+	}
+	
 	/* save message buffer */
-	debug_message_save(device->sn, msgbuffer, size);
+	debug_message_save(device->sn, item->valueint);
+
+	return 0;
 }
 
-static void ipcDeviceConfigEntry(int fd, int op, ipcPacket_t *request)
+static void ipcDeviceConfigEntry(int fd, int op, void *data)
 {
-    int ret;
+    int ackStatus;
+	cJSON * root = (cJSON *)data;
     
     switch (op)
     {
     	/* device register request */
         case IPC_OP_NEW:
             {
-                device_t *pDev;
-                
-                pDev = ipcData(request, typeof(device_t));
+            	device_t device;
 				
-				newDeviceAdd(fd, pDev);
-                
-                ipcAck(IPC_STATUS_OK);
+            	/* get sn code */
+				cJSON *item = cJSON_GetObjectItem(root, "sn");
+
+				if (!item)
+				{
+					debug("device", "No sn code!");
+					return ;
+				}
+
+				strncpy(device.sn, item->valuestring, sizeof(device.sn));
+
+				if (newDeviceAdd(fd, &device) < 0)
+				{
+					ipcDeviceAck(IPC_STATUS_FAIL);
+				}
+				else
+				{
+					ipcDeviceAck(IPC_STATUS_OK);
+				}
+				
+				
             }
             break;
         /* device upload data to server */
         case IPC_OP_UPLOAD_DATA:
-            {
-				/* get data size */
-				int size = ipcDataSize(request);
-				
-                /* get data info */
-				char *msgbuffer;
-                msgbuffer = ipcData(request, typeof(msgbuffer));
-                
+            {				                
                 /* deal data */
-				debug_info_deal(fd, msgbuffer, size);
-				
-                ipcAck(IPC_STATUS_OK);
+				if (debug_info_deal(fd, root) < 0)
+				{
+					ipcDeviceAck(IPC_STATUS_FAIL);
+				}
+				else
+				{
+					ipcDeviceAck(IPC_STATUS_OK);
+				}
             }
             break;
         default:
-            ipcAck(IPC_STATUS_ARGV);
+            ipcDeviceAck(IPC_STATUS_ARGV);
             break;
     }
 }

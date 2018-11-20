@@ -5,13 +5,13 @@
 
 typedef struct
 {
-	unsigned char sn[DEVICE_SN_LEN];
+	char sn[DEVICE_SN_LEN*2+1];
 }device_t;
 
 typedef struct device_info
 {
 	int fd;
-	unsigned char sn[DEVICE_SN_LEN];
+	char sn[DEVICE_SN_LEN];
 	struct device_info *next;
 }device_info_t;
 

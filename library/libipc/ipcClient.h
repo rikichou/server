@@ -38,6 +38,8 @@ int ipcConnect
         int msTimeout
     );
 
+int ipcDeviceRequest(int sock, char *json);
+
 ipcPacket_t *ipcRequest
     (
         int sock,       /* socket descriptor return by ipcConnect */
