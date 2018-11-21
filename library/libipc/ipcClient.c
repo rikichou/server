@@ -263,7 +263,7 @@ int ipcConnect
     return sock;
 }
 
-inline uint32_t ipcHash(const char *str)
+static uint32_t ipcHash(const char *str)
 {
     uint32_t hash = 0;
     

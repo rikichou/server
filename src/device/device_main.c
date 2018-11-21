@@ -1,17 +1,20 @@
 
 #include <string.h>
+#include <unistd.h>
 
 #include "debug.h"
-#include "device_main.c"
+#include "device_main.h"
+#include "req_device_main.h"
 
 /* library */
 #include "libipc/ipcType.h"
+#include "libipc/ipcServer.h"
 #include "libcore/timer.h"
 #include "libcjson/cJSON.h"
 
 static device_info_t *device_head = NULL;
 
-device_t *device_find_by_sn(char sn[DEVICE_SN_LEN*2+1], device_info_t *head)
+device_info_t *device_find_by_sn(char sn[DEVICE_SN_LEN*2+1], device_info_t *head)
 {
 	device_info_t *p = head;
 
@@ -28,13 +31,13 @@ device_t *device_find_by_sn(char sn[DEVICE_SN_LEN*2+1], device_info_t *head)
 	return NULL;
 }
 
-device_t *device_find_by_fd(int fd, device_info_t *head)
+device_info_t *device_find_by_fd(int fd, device_info_t *head)
 {
 	device_info_t *p = head;
 
 	while (p)
 	{
-		if (fd == p->sn)
+		if (fd == p->fd)
 		{
 			return p;
 		}
@@ -53,7 +56,7 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 	if (!p)
 	{
 		debug("device", "Failed to add device, Malloc(%d) Failed\n", sizeof(device_info_t));
-		return -1;
+		return NULL;
 	}
 
 	/* clean malloc memory */
@@ -75,7 +78,7 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 		*phead = p;
 	}
 
-	return 0;
+	return p;
 }
 
 int debug_cmd_send(void *data, int reason)
@@ -146,7 +149,7 @@ int debug_message_save(char sn[DEVICE_SN_LEN*2+1], int temperature)
 	sprintf(file_name, "%s.log", sn);
 
 	/* save to file */
-	in fd = open(file_name, O_WRONLY|O_CRAET|O_APPEND);
+	int fd = open(file_name, O_WRONLY|O_CREAT|O_APPEND);
 
 	if (fd < 0)
 	{
@@ -199,7 +202,7 @@ int debug_info_deal(int fd, cJSON *root)
 	}
 	
 	/* save message buffer */
-	debug_message_save(device->sn, item->valueint);
+	debug_message_save(device.sn, item->valueint);
 
 	return 0;
 }

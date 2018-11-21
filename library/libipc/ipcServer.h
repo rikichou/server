@@ -71,6 +71,8 @@ void ipcExit(const char * name);
 
 int ipcClientsProcessId(int *pids, int size);
 
+int ipcDeviceSimpleResponse(int sock, int status);
+
 /*
     ipc quick macros 
 */

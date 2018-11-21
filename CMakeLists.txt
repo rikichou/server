@@ -8,6 +8,7 @@ project (entryd)
 include_directories(include library)
 # define src dir
 AUX_SOURCE_DIRECTORY(src DIR_SRCS)
+AUX_SOURCE_DIRECTORY(src/device DIR_SRCS)
 
 # --------------------------------library/libcommon-----------------------------------------#
 # to make use of the library
