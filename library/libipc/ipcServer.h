@@ -73,6 +73,8 @@ int ipcClientsProcessId(int *pids, int size);
 
 int ipcDeviceSimpleResponse(int sock, int status);
 
+void ipcDeviceStart(const char * name);
+
 /*
     ipc quick macros 
 */

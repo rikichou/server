@@ -22,10 +22,10 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-//#include <libext.h>
-//#include <generic/miscType.h>
 
+/* usr */
 #include <main.h>
+#include "device_main.h"
 
 #undef SYSLOG_TO_DEBUG 
 #define SYSLOG_TO_DEBUG  1
@@ -40,6 +40,9 @@ static void baseInit(void)
     
     /* start public modules */
     ipcStart("server");
+
+	/* start device server */
+	ipcDeviceStart("device_server");
 }
 
 static void globalDeinit(void)
@@ -152,6 +155,8 @@ static void startAll(void)
 {
 	/* start user model */
 
+	
+	
 	return ;
 }
 
@@ -162,9 +167,17 @@ static void stopAll(void)
 	return ;
 }
 
+static void preInit(void)
+{
+	/* device module pre init */
+	devicePreInit();
+}
+
 int main(int argc, char **argv)
 {
 	firstInit(argc, argv);
+
+	preInit();
 
 	/* 1. base system init */
 	baseInit();

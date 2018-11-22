@@ -58,7 +58,7 @@ void debugTestAndLoadDynamicIds(void);
 int localDebug(int force, const char *id, const char *format, ...);
 
 #define _debug(id, format, ...) \
-    localDebug(0, id, "line:%d, "format, __LINE__, ##__VA_ARGS__)
+    localDebug(0, id, "[%s,%s,%d], "format, __FILE__, __FUNCTION__,__LINE__, ##__VA_ARGS__)
 
 #define _check(id, format, ...) \
     localDebug(FORCE_CHECK_DEBUG, id, format, ##__VA_ARGS__)

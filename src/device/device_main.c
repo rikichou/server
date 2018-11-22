@@ -114,14 +114,14 @@ int newDeviceAdd(int fd, device_t *pDev)
 	
 	/* add device */
 	device_info_t *pdev_info = NULL;
-	if ((pdev_info=device_add(&device_head, pDev, fd)) != NULL)
+	if ((pdev_info=device_add(&device_head, pDev, fd)) == NULL)
 	{
-		debug("device", "Failed to add device");
+		debug("device", "Failed to add device %s", pDev->sn);
 		return -1;
 	}
 	else
 	{
-		debug("device", "Add device success");
+		debug("device", "Add device (%s) success", pDev->sn);
 	}
 
 	/* JUST FOR DEBUG : register timer handle to send command to device */
@@ -146,7 +146,7 @@ int debug_message_save(char sn[DEVICE_SN_LEN*2+1], int temperature)
 
 	/* file name */
 	char file_name[64];
-	sprintf(file_name, "%s.log", sn);
+	sprintf(file_name, "log/%s.log", sn);
 
 	/* save to file */
 	int fd = open(file_name, O_WRONLY|O_CREAT|O_APPEND);

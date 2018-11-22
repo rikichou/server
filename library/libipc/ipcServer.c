@@ -694,11 +694,11 @@ void ipcDeviceReceive(void *data)
         return ;
     }
     
-    debug("ipc", "ipcAccept(%d) return name:%s", s_ipcSocket, name);
+    debug("ipc", "ipcAccept(%d) return name:%s", s_ipcDeviceSocket, name);
     
     client->fd = fd;
     client->name = strdup(name);       
-    client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcPacketProcess);
+    client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcDevicePacketProcess);
     client->next= s_ipcConnectionHead;
     s_ipcConnectionHead = client;      
 }
@@ -709,6 +709,6 @@ void ipcDeviceStart(const char * name)
 	assert(s_ipcDeviceSocket >= 0, "Failed to init IPC socket on %s", name); 
 	debug("ipc", "Open IPC socket(%d) on %s", s_ipcDeviceSocket, name);
 
-	threadAddListeningFile("sys.ipc", s_ipcDeviceSocket, NULL, ipcReceive);
+	threadAddListeningFile("sys.ipc", s_ipcDeviceSocket, NULL, ipcDeviceReceive);
 }
 

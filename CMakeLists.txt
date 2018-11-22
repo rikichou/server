@@ -5,7 +5,7 @@ cmake_minimum_required (VERSION 2.8)
 project (entryd)
 
 # add include dir
-include_directories(include library)
+include_directories(include library src/device src)
 # define src dir
 AUX_SOURCE_DIRECTORY(src DIR_SRCS)
 AUX_SOURCE_DIRECTORY(src/device DIR_SRCS)
