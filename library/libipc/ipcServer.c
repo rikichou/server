@@ -321,6 +321,7 @@ void ipcConnectionClean(int all)
             if (p->fd >= 0)
             {
                 close(p->fd);
+				debug("ipc", "close client %d\n", p->fd);
             }
             threadRemoveListeningFile(p->handle);            
             free(p->name);
@@ -537,13 +538,12 @@ void ipcStart(const char * name)
 
 void ipcExit(const char * name)
 {
+    ipcHandleRemoveAll();
+    ipcConnectionClean(1);    
     close(s_ipcSocket);
 	close(s_ipcDeviceSocket);
 	debug("ipc", "IPC Exit!\n");
     unlink(name);
-
-    ipcHandleRemoveAll();
-    ipcConnectionClean(1);    
 }
 
 // ****************************************************  ipc for device
@@ -562,13 +562,26 @@ int ipcDeviceSocketInit(void)
 		return -1;
 	}
 
+	/* 1. set socket reuse */
+	int val = 1;
+	int ret = setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,(void *)&val,sizeof(int));
+	if(ret == -1)
+	{
+		debug("ipc", "socket setfd failed!!\n");
+		exit(1);
+	}
+
+
 	/* 2. binding server addr */
 	bzero(&serveraddr, sizeof(serveraddr));
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serveraddr.sin_port = htons(IPC_SERVER_DEVICE_PORT);
 	
-	bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+	if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+	{
+		debug("ipc", "socket binding failed!!\n");
+	}
  
 	/* 3. listen */
 	if(listen(sockfd, IPC_LISTEN_QUEUE_LEN) < 0) 
@@ -604,6 +617,23 @@ static void ipcDevicePacketProcess(void *data)
     {
     	debug("ipc", "data is NULL!");
         return ;
+    }
+	debug("ipc", "aaaaaaaaaaaaaaaaaaa\n");
+	ssize_t recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);
+	while((recvSize == -1) && (errno == EINTR))
+	{
+		recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);	
+		debug("ipc", "!!!!!!!!!!!!\n");
+	}
+
+    if(recvSize <= 0)
+    {
+        debug("ipc", "recv(socket=%d) return %d, the client seems crash", ipc->fd, recvSize);
+        close(ipc->fd);
+        ipc->fd = -1;
+        /* clean the unused connections */
+        ipcConnectionClean(0);
+        return;
     }
 	
     if ((ret=recv(ipc->fd, buff, sizeof(buff), 0)) < 0) 
