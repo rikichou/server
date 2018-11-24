@@ -538,6 +538,8 @@ void ipcStart(const char * name)
 void ipcExit(const char * name)
 {
     close(s_ipcSocket);
+	close(s_ipcDeviceSocket);
+	debug("ipc", "IPC Exit!\n");
     unlink(name);
 
     ipcHandleRemoveAll();
@@ -578,6 +580,19 @@ int ipcDeviceSocketInit(void)
 	return sockfd;
 }
 
+static void jsonConvertToStandardFormat(char buff[IPC_MSG_MAX_SIZE])
+{
+	int i;
+
+	for (i = 0; i < IPC_MSG_MAX_SIZE; i ++)
+	{
+		if (buff[i] == '\'')
+		{
+			buff[i] = '\"';
+		}
+	}
+}
+
 static void ipcDevicePacketProcess(void *data)
 {
 	/* receive data */
@@ -596,6 +611,11 @@ static void ipcDevicePacketProcess(void *data)
         debug("ipc", "recv() return (%d)", ret);
         return;
     } 	
+
+	/*
+		json convert
+	*/
+	jsonConvertToStandardFormat(buff);
 
 	/*
 		process packet by json

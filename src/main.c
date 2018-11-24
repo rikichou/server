@@ -33,8 +33,13 @@
 /* global variable */
 struct global g;
 
+static void signalReceive(void *data);
+
 static void baseInit(void)
 {
+	/* signal */
+	threadAddListeningFile("sys.signal", g.signalPipe[0], NULL, signalReceive);
+	
     /* register timer */
     threadAddPollingFunction("sys.timer", NULL, timerPolling);
     
@@ -70,6 +75,54 @@ static void baseDeinit(void)
     sysLog(LOG_INFO, "Entryd exit!");  
 
     closeLog();
+}
+
+static void signalReceive(void *data)
+{
+    int sig;
+    if(read(g.signalPipe[0], &sig, sizeof(sig)) >= 0) 
+    {
+        debug("signal", "Catch signal: %d", sig); 
+
+    	switch(sig)
+        {
+            case SIGTERM:
+            case SIGKILL:
+            case SIGSEGV:
+            case SIGSTOP:
+            case SIGABRT:
+            case SIGQUIT:
+            case SIGINT:                
+                entryLog("signal", LOG_INFO, "Catch STOP signal(%d)", sig);
+                threadExit();
+    		    break;
+    	}        
+    }
+}
+
+
+static void signalHandle(int sig)
+{
+    int ret;
+    ret = send(g.signalPipe[1], &sig, sizeof(sig), MSG_DONTWAIT);
+    //assert(ret >= 0, "Could not send signal: %d", sig);
+}
+
+static void signalInit(void)
+{
+    /* Init signal handle */
+    socketpair(AF_UNIX, SOCK_STREAM, 0, g.signalPipe);
+
+    signal(SIGUSR1, signalHandle);
+    signal(SIGUSR2, signalHandle);
+    signal(SIGTERM, signalHandle); // TERM(kill)
+    //signal(SIGKILL, signalHandle); // KILL(kill -9)
+    signal(SIGSEGV, signalHandle);
+    signal(SIGSTOP, signalHandle);
+    signal(SIGABRT, signalHandle);
+    signal(SIGQUIT, signalHandle);
+    signal(SIGINT, signalHandle); // INT
+    //signal(SIGCHLD, signalHandle);
 }
 
 static void globalInit(int argc, char **argv)
@@ -134,6 +187,8 @@ static void globalInit(int argc, char **argv)
             tcsetattr(g.stdFd, TCSANOW, &opt);
         }
     }
+
+	signalInit();  
 
     /* enable apply function */
     g.applyAll = 1;
