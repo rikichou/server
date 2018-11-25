@@ -135,14 +135,14 @@ int newDeviceAdd(int fd, device_t *pDev)
 #include <sys/stat.h>
 #include <fcntl.h>
 
-int debug_message_save(char sn[DEVICE_SN_LEN*2+1], double temperature)
+int debug_message_save(char sn[DEVICE_SN_LEN*2+1], char *data)
 {
 	char buffer[256];
 	struct tm  *tp; 
 	time_t t = time(NULL);	
 	tp = localtime(&t);
 
-	int len = sprintf(buffer, "%d/%d/%d %d:%d:%d %f\n", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour,tp->tm_min,tp->tm_sec, temperature);
+	int len = sprintf(buffer, "%d/%d/%d %d:%d:%d data:(%s)\n", tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday, tp->tm_hour,tp->tm_min,tp->tm_sec, data);
 
 	/* file name */
 	char file_name[64];
@@ -193,7 +193,7 @@ int debug_info_deal(int fd, cJSON *root)
 	}
 
 	/* get temperature */
-	item = cJSON_GetObjectItem(root, "temperature");
+	item = cJSON_GetObjectItem(root, "data");
 
 	if (!item)
 	{
@@ -202,7 +202,7 @@ int debug_info_deal(int fd, cJSON *root)
 	}
 	
 	/* save message buffer */
-	debug_message_save(device.sn, item->valuedouble);
+	debug_message_save(device.sn, item->valuestring);
 
 	return 0;
 }
