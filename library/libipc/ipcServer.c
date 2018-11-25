@@ -618,12 +618,11 @@ static void ipcDevicePacketProcess(void *data)
     	debug("ipc", "data is NULL!");
         return ;
     }
-	debug("ipc", "aaaaaaaaaaaaaaaaaaa\n");
+
 	ssize_t recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);
 	while((recvSize == -1) && (errno == EINTR))
 	{
 		recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);	
-		debug("ipc", "!!!!!!!!!!!!\n");
 	}
 
     if(recvSize <= 0)

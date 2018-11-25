@@ -275,9 +275,25 @@ static uint32_t ipcHash(const char *str)
     return hash;
 }
 
+void jsonConvertToDevieFormat(char *buff)
+{
+    int i;
+
+    for (i = 0; i < strlen(buff); i ++)
+    {
+        if (buff[i] == '\"')
+        {
+            buff[i] = '\'';
+        }
+    }
+
+}
+
 /* TODO ... add wait response */
 int ipcDeviceRequest(int sock, char *json)
 {
+    jsonConvertToDevieFormat(json);
+
 	uint32_t len = strlen(json);
 
 	int ret = send(sock, json, len, 0);
