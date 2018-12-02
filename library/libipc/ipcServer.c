@@ -374,7 +374,7 @@ int ipcClientsProcessId(int *pids, int size)
     return count;
 }
 
-
+#define IPC_MAX_CYCLE_TIME	10
 static void ipcPacketProcess(void *data)
 {
     ipcConnection_t *ipc = data;
@@ -390,10 +390,12 @@ static void ipcPacketProcess(void *data)
 
     debug("ipc", "receive from %s on socket(%d)", ipc->name, ipc->fd);    
 
+	int max_cycle_time = IPC_MAX_CYCLE_TIME;
 	recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_PEEK);
-	while((recvSize == -1) && (errno == EINTR))
+	while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 	{
 		recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_PEEK);	
+		max_cycle_time --;
 	}
 
     if(recvSize <= 0) 
@@ -424,16 +426,21 @@ static void ipcPacketProcess(void *data)
     {
         debug("ipc", "invalid request");
 
+		debug("ipc", "");
+
         /* remove the command */
         hdr.commandLength = htonl(0);
         
         ipcResponse(ipc->fd, (ipcPacket_t *)&hdr, IPC_STATUS_INVALID, 0, 0, NULL);        
 
         //0TODO: clear the recv buffer
+        max_cycle_time = IPC_MAX_CYCLE_TIME;
         recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);
-		while((recvSize == -1) && (errno == EINTR))
+		while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 		{
+			debug("ipc", "while recycle!!");
 			recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);	
+			max_cycle_time --;
 		}
 		
         return ;
@@ -451,9 +458,11 @@ static void ipcPacketProcess(void *data)
 
         //0TODO: clear the recv buffer        
         recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);
-		while((recvSize == -1) && (errno == EINTR))
+		max_cycle_time = IPC_MAX_CYCLE_TIME;
+		while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 		{
 			recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);
+			max_cycle_time --;
 		}
 		
         return;
@@ -511,7 +520,7 @@ void ipcReceive(void *data)
     debug("ipc", "ipcAccept(%d) return name:%s", s_ipcSocket, name);
     
     client->fd = fd;
-    client->name = strdup(name);       
+    client->name = strdup(name);
     client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcPacketProcess);
     client->next= s_ipcConnectionHead;
     s_ipcConnectionHead = client;      
@@ -612,6 +621,7 @@ static void ipcDevicePacketProcess(void *data)
 	int ret;
 	char buff[IPC_MSG_MAX_SIZE];
 	ipcConnection_t *ipc = data;
+	int max_cycle_time = IPC_MAX_CYCLE_TIME;
 
     if (ipc == NULL)
     {
@@ -622,9 +632,11 @@ static void ipcDevicePacketProcess(void *data)
 	memset(buff, 0, sizeof(buff));
 	
 	ssize_t recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);
-	while((recvSize == -1) && (errno == EINTR))
+	while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 	{
+		debug("ipc", "IPC cycle!!\n");
 		recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);	
+		max_cycle_time --;
 	}
 
     if(recvSize <= 0)
