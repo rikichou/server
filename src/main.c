@@ -44,7 +44,7 @@ static void baseInit(void)
     threadAddPollingFunction("sys.timer", NULL, timerPolling);
     
     /* start public modules */
-    ipcStart("server");
+    //ipcStart("server");
 
 	/* start device server */
 	ipcDeviceStart("device_server");
