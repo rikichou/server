@@ -619,6 +619,8 @@ static void ipcDevicePacketProcess(void *data)
         return ;
     }
 
+	memset(buff, 0, sizeof(buff));
+	
 	ssize_t recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);
 	while((recvSize == -1) && (errno == EINTR))
 	{
@@ -644,7 +646,7 @@ static void ipcDevicePacketProcess(void *data)
 	/*
 		json convert
 	*/
-	jsonConvertToStandardFormat(buff);
+	//jsonConvertToStandardFormat(buff);
 
 	/*
 		process packet by json

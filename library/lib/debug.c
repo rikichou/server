@@ -259,6 +259,35 @@ void debugTestAndLoadDynamicIds(void)
     }
 }
 
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+void writeDebugToFile(const char *debug_file_path, char *buffer, int len)
+{
+	/* save to file */
+	int fd = open(debug_file_path, O_RDWR|O_CREAT|O_APPEND, 0777);
+
+	if (fd < 0)
+	{
+		debug("device", "Failed to open debug file (%d)%s", fd, debug_file_path);
+		return;
+	}
+
+	int ret = write(fd, buffer, len);
+
+	if (ret < 0)
+	{
+		close(fd);
+		debug("device", "Failed to write message to debug file (%d)%s", ret, debug_file_path);
+		return;
+	}
+	
+	close(fd);
+
+}
+
 int localDebug(int force, const char *id, const char *format, ...)
 {
 	va_list args;
@@ -266,7 +295,9 @@ int localDebug(int force, const char *id, const char *format, ...)
     char buffer[DEBUG_BUFFER_SIZE];
     int len = 0, ret;
     int overFlow = 0;
-    
+
+	memset(buffer, 0, sizeof(buffer));
+	
     if (force || debugTest(id))
     {
         va_start (args, format);
@@ -293,7 +324,10 @@ int localDebug(int force, const char *id, const char *format, ...)
         }
         else 
         {
-            len = fprintf(stderr, "%s%s", buffer, "\n");            
+            len = fprintf(stderr, "%s%s", buffer, "\n");    
+
+			// just for debug
+			writeDebugToFile("log/debug.file", buffer, len);
         }
     }
     

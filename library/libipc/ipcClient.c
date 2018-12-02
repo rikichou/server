@@ -292,7 +292,7 @@ void jsonConvertToDevieFormat(char *buff)
 /* TODO ... add wait response */
 int ipcDeviceRequest(int sock, char *json)
 {
-    jsonConvertToDevieFormat(json);
+    //jsonConvertToDevieFormat(json);
 
 	uint32_t len = strlen(json);
 
