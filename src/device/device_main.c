@@ -103,10 +103,12 @@ int debug_cmd_send(void *data, int reason)
 
 int newDeviceAdd(int fd, device_t *pDev)
 {
+	device_info_t *pdev_info = NULL;
+
 	debug("device", "Now add device ... \n");
 
 	/* check if the device is exist */
-	if (device_find_by_sn(pDev->sn, device_head))
+	if ((pdev_info=device_find_by_sn(pDev->sn, device_head)) != NULL)
 	{
 		debug("device", "Device already exists!\n");
 		/* JUST FOR DEBUG : register timer handle to send command to device */
@@ -115,7 +117,6 @@ int newDeviceAdd(int fd, device_t *pDev)
 	}
 	
 	/* add device */
-	device_info_t *pdev_info = NULL;
 	if ((pdev_info=device_add(&device_head, pDev, fd)) == NULL)
 	{
 		debug("device", "Failed to add device %s", pDev->sn);
