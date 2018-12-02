@@ -109,6 +109,8 @@ int newDeviceAdd(int fd, device_t *pDev)
 	if (device_find_by_sn(pDev->sn, device_head))
 	{
 		debug("device", "Device already exists!\n");
+		/* JUST FOR DEBUG : register timer handle to send command to device */
+		timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);		
 		return 0;
 	}
 	
