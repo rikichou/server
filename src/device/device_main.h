@@ -1,7 +1,7 @@
 #ifndef __DEVICE_MAIN_H__
 #define __DEVICE_MAIN_H__
 
-#define DEVICE_SN_LEN	6
+#define DEVICE_SN_LEN	8
 
 typedef struct
 {
