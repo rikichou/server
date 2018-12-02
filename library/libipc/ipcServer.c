@@ -391,7 +391,9 @@ static void ipcPacketProcess(void *data)
     debug("ipc", "receive from %s on socket(%d)", ipc->name, ipc->fd);    
 
 	int max_cycle_time = IPC_MAX_CYCLE_TIME;
+	debug("ipc", "1");
 	recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_PEEK);
+	debug("ipc", "2");
 	while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 	{
 		recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_PEEK);	
@@ -426,8 +428,6 @@ static void ipcPacketProcess(void *data)
     {
         debug("ipc", "invalid request");
 
-		debug("ipc", "");
-
         /* remove the command */
         hdr.commandLength = htonl(0);
         
@@ -435,7 +435,9 @@ static void ipcPacketProcess(void *data)
 
         //0TODO: clear the recv buffer
         max_cycle_time = IPC_MAX_CYCLE_TIME;
+		debug("ipc", "1");
         recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);
+		debug("ipc", "2");
 		while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 		{
 			debug("ipc", "while recycle!!");
@@ -457,7 +459,9 @@ static void ipcPacketProcess(void *data)
         ipcResponse(ipc->fd, (ipcPacket_t *)&hdr, IPC_STATUS_NOMEM, 0, 0, NULL);
 
         //0TODO: clear the recv buffer        
+        debug("ipc", "1");
         recvSize = recv(ipc->fd, &hdr, sizeof(ipcHeader_t), MSG_TRUNC);
+		debug("ipc", "2");
 		max_cycle_time = IPC_MAX_CYCLE_TIME;
 		while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
 		{
