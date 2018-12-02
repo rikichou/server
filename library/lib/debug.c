@@ -327,7 +327,10 @@ int localDebug(int force, const char *id, const char *format, ...)
             len = fprintf(stderr, "%s%s", buffer, "\n");    
 
 			// just for debug
-			writeDebugToFile("log/debug.file", buffer, len);
+			len = strlen(buffer);
+			buffer[len] = '\n';
+			buffer[len+1] = '\0';
+			writeDebugToFile("log/debug.file", buffer, len+1);
         }
     }
     
