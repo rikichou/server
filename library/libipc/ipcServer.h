@@ -82,6 +82,9 @@ void ipcDeviceStart(const char * name);
 #define ipcDeviceAck(status) ipcDeviceSimpleResponse(fd, status)
 
 
+/*.NDB interface */
+int ipcNDBSocketGet(void);
+
 #endif /* __IPCSERVER_H__ */
 
 

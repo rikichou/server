@@ -53,6 +53,7 @@ Description  :
 
 #define IPC_SERVER_PORT 8888
 #define IPC_SERVER_DEVICE_PORT 6666
+#define IPC_SERVER_NDB_PORT 7777
 
 
 //inline uint32_t ipcHash(const char *str);

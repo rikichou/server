@@ -202,6 +202,7 @@ int ipcResponse
 struct ipcHandleList *s_ipcHandleHead[257] = { NULL };
 static int s_ipcSocket = -1;
 static int s_ipcDeviceSocket = -1;
+static int s_ipcNDBSocket = -1;
 
 
 
@@ -555,6 +556,7 @@ void ipcExit(const char * name)
     ipcConnectionClean(1);    
     close(s_ipcSocket);
 	close(s_ipcDeviceSocket);
+    close(s_ipcNDBSocket);
 	debug("ipc", "IPC Exit!\n");
     unlink(name);
 }
@@ -779,3 +781,175 @@ void ipcDeviceStart(const char * name)
 	threadAddListeningFile("sys.ipc", s_ipcDeviceSocket, NULL, ipcDeviceReceive);
 }
 
+
+// ****************************************************  ipc for network debug
+
+int ipcNDBSocketInit(void)
+{
+    int sockfd, addrlen, confd, len, i;
+    struct sockaddr_in serveraddr;
+
+    /* 1. socket */
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if(sockfd < 0) 
+    {        
+        debug("ipc", "call socket() return : %s(%d)", strerror(errno), errno);
+        return -1;
+    }
+
+    /* 1. set socket reuse */
+    int val = 1;
+    int ret = setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,(void *)&val,sizeof(int));
+    if(ret == -1)
+    {
+        debug("ipc", "socket setfd failed!!\n");
+        exit(1);
+    }
+
+
+    /* 2. binding server addr */
+    bzero(&serveraddr, sizeof(serveraddr));
+    serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serveraddr.sin_port = htons(IPC_SERVER_NDB_PORT);
+    
+    if (bind(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+    {
+        debug("ipc", "socket binding failed!!\n");
+    }
+ 
+    /* 3. listen */
+    if(listen(sockfd, IPC_LISTEN_QUEUE_LEN) < 0) 
+    {
+        debug("ipc", "call listen() return: %s", strerror(errno));
+        return -1;
+    }
+
+    return sockfd;
+}
+
+static void ipcNDBPacketProcess(void *data)
+{
+    /* receive data */
+    int ret;
+    char buff[IPC_MSG_MAX_SIZE];
+    ipcConnection_t *ipc = data;
+    int max_cycle_time = IPC_MAX_CYCLE_TIME;
+
+    if (ipc == NULL)
+    {
+        debug("ipc", "data is NULL!");
+        return ;
+    }
+
+    memset(buff, 0, sizeof(buff));
+    
+    ssize_t recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK);
+    while((recvSize == -1) && (errno == EINTR) && (max_cycle_time>0))
+    {
+        debug("ipc", "IPC cycle!!\n");
+        recvSize = recv(ipc->fd, buff, sizeof(buff), MSG_PEEK); 
+        max_cycle_time --;
+    }
+
+    if(recvSize <= 0)
+    {
+        debug("ipc", "recv(socket=%d) return %d, the client seems crash", ipc->fd, recvSize);
+        close(ipc->fd);
+        ipc->fd = -1;
+        /* clean the unused connections */
+        ipcConnectionClean(0);
+        return;
+    }
+    
+    if ((ret=recv(ipc->fd, buff, sizeof(buff), 0)) < 0) 
+    {
+        debug("ipc", "recv() return (%d)", ret);
+        return;
+    }   
+
+    /*
+        json convert
+    */
+    //jsonConvertToStandardFormat(buff);
+
+    /*
+        process packet by json
+    */
+    cJSON * root = NULL;
+    cJSON * item = NULL;
+
+    root = cJSON_Parse(buff);
+
+    if (!root)
+    {
+        debug("ipc", "Failed to parse JSON : %s", buff);
+        return;
+    }
+
+    /* do nothing, just send to device */
+    ipcHandle_t function;
+
+    debug("ipc", "%s", cJSON_Print(root));
+
+    function = ipcHandleGet("NDB_cmd_set");
+
+    if (function)
+    {
+        debug("ipc", "op is %d", IPC_OP_SET);
+        function(ipc->fd, IPC_OP_SET, (void *)root);
+    }
+    else 
+    {
+        debug("ipc", "Unknown command(%s), please check!", "IPC_OP_SET");
+    }
+
+    cJSON_Delete(root);
+}
+
+
+void ipcNDBReceive(void *data)
+{
+    int fd;
+    char name[128];
+    ipcConnection_t *client = NULL;    
+    
+    fd = ipcAccept(s_ipcNDBSocket);
+
+    if (fd < 0)
+    {
+        debug("ipc", "ipcAccept(%d) failed", s_ipcNDBSocket);
+        return ;
+    }
+    
+    client = (ipcConnection_t *)malloc(sizeof(ipcConnection_t));
+    if (client == NULL)
+    {
+        debugf("malloc", "malloc(%d) failed", sizeof(ipcConnection_t));
+        close(fd);
+        return ;
+    }
+    
+    debug("ipc", "ipcAccept(%d) return name:%s", s_ipcNDBSocket, name);
+    
+    client->fd = fd;
+    client->name = strdup(name);       
+    client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcNDBPacketProcess);
+    client->next= s_ipcConnectionHead;
+    s_ipcConnectionHead = client;      
+}
+
+int ipcNDBSocketGet(void)
+{
+    return s_ipcNDBSocket;
+}
+
+void ipcNDBStart(const char * name)
+{
+    s_ipcNDBSocket = ipcNDBSocketInit();
+    assert(s_ipcNDBSocket >= 0, "Failed to init IPC socket on %s", name); 
+    debug("ipc", "Open IPC socket(%d) on %s", s_ipcNDBSocket, name);
+
+    threadAddListeningFile("sys.ipc", s_ipcNDBSocket, NULL, ipcNDBReceive);
+}

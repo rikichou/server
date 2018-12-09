@@ -48,6 +48,9 @@ static void baseInit(void)
 
 	/* start device server */
 	ipcDeviceStart("device_server");
+
+    /* start NDB server */
+    ipcNDBStart("NDB_server");
 }
 
 static void globalDeinit(void)

@@ -177,6 +177,14 @@ int debug_info_deal(int fd, cJSON *root)
 {
 	device_t device;
 	
+	int NDB_fd = ipcNDBSocketGet();
+
+	if (NDB_fd == -1)
+	{
+		debug("device", "have any windows client connect to server??");
+		return -1;
+	}
+
 	/* get sn code */
 	cJSON *item = cJSON_GetObjectItem(root, "sn");
 	
@@ -195,6 +203,19 @@ int debug_info_deal(int fd, cJSON *root)
 		return -2;
 	}
 
+	/*.get sub device num */
+	int subdevice;
+
+	item = cJSON_GetObjectItem(root, "subdevice");
+
+	if (!item)
+	{
+		debug("device", "No subdevice!");
+		return -3;
+	}
+
+	subdevice = item->valueint;
+
 	/* get temperature */
 	item = cJSON_GetObjectItem(root, "data");
 
@@ -203,9 +224,10 @@ int debug_info_deal(int fd, cJSON *root)
 		debug("device", "No temperature!");
 		return -3;
 	}
-	
+
+
 	/* save message buffer */
-	debug_message_save(device.sn, item->valuestring);
+	ipc_NDB_data_update(NDB_fd, subdevice, item->valuestring, device.sn);
 
 	return 0;
 }
@@ -265,10 +287,58 @@ static void ipcDeviceConfigEntry(int fd, int op, void *data)
     }
 }
 
+static void ipcNDBConfigEntry(int fd, int op, void *data)
+{
+    int ackStatus;
+	cJSON * root = (cJSON *)data;
+    
+    switch (op)
+    {
+    	/* device register request */
+        case IPC_OP_SET:
+            {
+            	device_info_t *pdev;
+            	device_t device;
+				
+            	/* get sn code */
+				cJSON *item = cJSON_GetObjectItem(root, "sn");
+
+				if (!item)
+				{
+					debug("device", "No sn code!");
+					return ;
+				}
+
+				strncpy(device.sn, item->valuestring, sizeof(device.sn));
+
+				if ((pdev=device_find_by_sn(device.sn, device_head)) == NULL)
+				{
+					debug("device", "Device %s didn`t registered!\n", device.sn);
+					return 0;
+				}
+
+				if (ipc_NDB_main_set(root, pdev) < 0)
+				{
+					debug("device", "failed to send message to device %s by socket %d\n", pdev->sn, pdev->fd);
+				}
+				else
+				{
+					debug("device", "send message to device %s success", pdev->sn);
+				}
+				
+            }
+            break;
+        default:
+            ipcDeviceAck(IPC_STATUS_ARGV);
+            break;
+    }
+}
+
 
 void devicePreInit()
 {
     ipcHandleAdd("device", ipcDeviceConfigEntry);
+    ipcHandleAdd("NDB_cmd_set", ipcNDBConfigEntry);
 }
 
 

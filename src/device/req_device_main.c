@@ -40,4 +40,37 @@ int ipc_device_main_set(device_info_t *info)
 	return 0;
 }
 
+int ipc_NDB_main_set(cJSON *root, device_info_t *info)
+{
+	/*.message prepare */
+	char *jsonString = cJSON_Print(root);
+	
+	int ret = ipcDeviceRequest(info->fd, jsonString);
+
+	if (jsonString)
+	{
+		free(jsonString);
+	}
+
+	return 0;
+}
+
+int ipc_NDB_data_update(int fd, int subdevice, const char *string, const char *sn)
+{
+	float temp = 11.23;
+	int device_num;
+	char msg_buff[128];
+
+	/*.how to get temperature by rules */
+
+	memset(msg_buff, 0, sizeof(msg_buff));
+
+	snprintf(msg_buff, "%s,%d,%f\n", sn, subdevice, temp);
+
+	int ret = ipcDeviceRequest(fd, msg_buff);
+
+	return 0;
+}
+
+
 
