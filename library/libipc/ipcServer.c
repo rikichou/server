@@ -203,7 +203,7 @@ int ipcResponse
 struct ipcHandleList *s_ipcHandleHead[257] = { NULL };
 static int s_ipcSocket = -1;
 static int s_ipcDeviceSocket = -1;
-static int s_ipcNDBSocket = -1;
+static int s_ipcNDBSocket = -1, s_ipcNDBClientSocket = -1;
 
 
 
@@ -931,7 +931,8 @@ void ipcNDBReceive(void *data)
     }
     
     debug("ipc", "ipcAccept(%d) return name:%s", s_ipcNDBSocket, name);
-    
+
+	s_ipcNDBClientSocket = fd;
     client->fd = fd;
     client->name = strdup(name);       
     client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcNDBPacketProcess);
@@ -941,7 +942,7 @@ void ipcNDBReceive(void *data)
 
 int ipcNDBSocketGet(void)
 {
-    return s_ipcNDBSocket;
+    return s_ipcNDBClientSocket;
 }
 
 void ipcNDBStart(const char * name)
