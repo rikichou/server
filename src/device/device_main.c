@@ -16,20 +16,27 @@ static device_info_t *device_head = NULL;
 
 char buff[512];
 
-const char *device_sn_to_string(unsigned char sn[DEVICE_SN_LEN])
+const char *device_sn_to_string(unsigned int sn[DEVICE_SN_LEN])
 {
 	snprintf(buff, sizeof(buff), "%02x%02x%02x%02x%02x%02x%02x%02x", sn[0],sn[1],sn[2],sn[3],sn[4],sn[5],sn[6],sn[7]);
 
 	return buff;
 }
 
-device_info_t *device_find_by_sn(unsigned char sn[DEVICE_SN_LEN], device_info_t *head)
+void device_sn_parse(const char *sn_string, unsigned int sn[DEVICE_SN_LEN])
+{
+	sscanf(sn_string, "%02x%02x%02x%02x%02x%02x%02x%02x", &sn[0],&sn[1],&sn[2],&sn[3],&sn[4],&sn[5],&sn[6],&sn[7]);
+
+	debug("device", "%02x%02x%02x%02x%02x%02x%02x%02x", sn[0],sn[1],sn[2],sn[3],sn[4],sn[5],sn[6],sn[7]);
+}
+
+device_info_t *device_find_by_sn(unsigned int sn[DEVICE_SN_LEN], device_info_t *head)
 {
 	device_info_t *p = head;
 
 	while (p)
 	{
-		if (!memcmp(sn, p->sn, sizeof(sn)))
+		if (!memcmp(sn, p->sn, sizeof(p->sn)))
 		{
 			return p;
 		}
@@ -128,16 +135,16 @@ int newDeviceAdd(int fd, device_t *pDev)
 	/* add device */
 	if ((pdev_info=device_add(&device_head, pDev, fd)) == NULL)
 	{
-		//debug("device", "Failed to add device %s", device_sn_to_string(pDev->sn));
+		debug("device", "Failed to add device %s", device_sn_to_string(pDev->sn));
 		return -1;
 	}
 	else
 	{
-		//debug("device", "Add device (%s) success", device_sn_to_string(pDev->sn));
+		debug("device", "Add device (%s) success", device_sn_to_string(pDev->sn));
 	}
 
 	/* JUST FOR DEBUG : register timer handle to send command to device */
-	//timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);
+	timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);
 	
 	return 0;
 }
@@ -147,7 +154,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 #include <sys/stat.h>
 #include <fcntl.h>
 
-int debug_message_save(unsigned char sn[DEVICE_SN_LEN], char *data)
+int debug_message_save(unsigned int sn[DEVICE_SN_LEN], char *data)
 {
 	char buffer[256];
 	struct tm  *tp; 
@@ -239,13 +246,6 @@ int debug_info_deal(int fd, cJSON *root)
 	ipc_NDB_data_update(NDB_fd, subdevice, item->valuestring, device.sn);
 
 	return 0;
-}
-
-void device_sn_parse(const char *sn_string, unsigned char sn[DEVICE_SN_LEN])
-{
-	sscanf(sn_string, "%02x%02x%02x%02x%02x%02x%02x%02x", &sn[0],&sn[1],&sn[2],&sn[3],&sn[4],&sn[5],&sn[6],&sn[7]);
-
-	//debug("device", "%02x%02x%02x%02x%02x%02x%02x%02x", sn[0],sn[1],sn[2],sn[3],sn[4],sn[5],sn[6],sn[7]);
 }
 
 static void ipcDeviceConfigEntry(int fd, int op, void *data)

@@ -4,6 +4,8 @@
 #include "lib/debug.h"
 #include "libcjson/cJSON.h"
 
+const char *device_sn_to_string(unsigned int sn[DEVICE_SN_LEN]);
+
 int ipc_device_main_set(device_info_t *info)
 {
 	/* prepare json data */
@@ -20,7 +22,7 @@ int ipc_device_main_set(device_info_t *info)
 	
 	cJSON_AddNumberToObject(root, "packetType", IPC_REQUEST);
 	cJSON_AddNumberToObject(root, "operation", IPC_OP_SET);
-	cJSON_AddStringToObject(root, "sn", info->sn);
+	cJSON_AddStringToObject(root, "sn", device_sn_to_string(info->sn));
 
 	int len = sprintf(buff, "1,%d,%d,%d,%d,%d,%d,%d", channel, slave_addr, function_code, reg_addr, reg_num, value_len, value);
 	cJSON_AddStringToObject(root, "desset", buff);
@@ -55,7 +57,7 @@ int ipc_NDB_main_set(cJSON *root, device_info_t *info)
 	return 0;
 }
 
-int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned char sn[DEVICE_SN_LEN])
+int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned int sn[DEVICE_SN_LEN])
 {
 	float temp = 11.23;
 	int device_num;
@@ -65,7 +67,7 @@ int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned char
 
 	memset(msg_buff, 0, sizeof(msg_buff));
 
-	snprintf(msg_buff, "%s,%d,%f\n", device_sn_to_string(sn), subdevice, temp);
+	snprintf(msg_buff, sizeof(msg_buff), "%s,%d,%f\n", device_sn_to_string(sn), subdevice, temp);
 
 	int ret = ipcDeviceRequest(fd, msg_buff);
 
