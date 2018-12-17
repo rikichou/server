@@ -55,7 +55,7 @@ int ipc_NDB_main_set(cJSON *root, device_info_t *info)
 	return 0;
 }
 
-int ipc_NDB_data_update(int fd, int subdevice, const char *string, const char *sn)
+int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned char sn[DEVICE_SN_LEN])
 {
 	float temp = 11.23;
 	int device_num;
@@ -65,7 +65,7 @@ int ipc_NDB_data_update(int fd, int subdevice, const char *string, const char *s
 
 	memset(msg_buff, 0, sizeof(msg_buff));
 
-	snprintf(msg_buff, "%s,%d,%f\n", sn, subdevice, temp);
+	snprintf(msg_buff, "%s,%d,%f\n", device_sn_to_string(sn), subdevice, temp);
 
 	int ret = ipcDeviceRequest(fd, msg_buff);
 

@@ -14,13 +14,22 @@
 
 static device_info_t *device_head = NULL;
 
-device_info_t *device_find_by_sn(char sn[DEVICE_SN_LEN*2+1], device_info_t *head)
+char buff[512];
+
+const char *device_sn_to_string(unsigned char sn[DEVICE_SN_LEN])
+{
+	snprintf(buff, sizeof(buff), "%02x%02x%02x%02x%02x%02x%02x%02x", sn[0],sn[1],sn[2],sn[3],sn[4],sn[5],sn[6],sn[7]);
+
+	return buff;
+}
+
+device_info_t *device_find_by_sn(unsigned char sn[DEVICE_SN_LEN], device_info_t *head)
 {
 	device_info_t *p = head;
 
 	while (p)
 	{
-		if (!memcmp(sn, p->sn, DEVICE_SN_LEN*2))
+		if (!memcmp(sn, p->sn, sizeof(sn)))
 		{
 			return p;
 		}
@@ -119,16 +128,16 @@ int newDeviceAdd(int fd, device_t *pDev)
 	/* add device */
 	if ((pdev_info=device_add(&device_head, pDev, fd)) == NULL)
 	{
-		debug("device", "Failed to add device %s", pDev->sn);
+		//debug("device", "Failed to add device %s", device_sn_to_string(pDev->sn));
 		return -1;
 	}
 	else
 	{
-		debug("device", "Add device (%s) success", pDev->sn);
+		//debug("device", "Add device (%s) success", device_sn_to_string(pDev->sn));
 	}
 
 	/* JUST FOR DEBUG : register timer handle to send command to device */
-	timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);
+	//timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);
 	
 	return 0;
 }
@@ -138,7 +147,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 #include <sys/stat.h>
 #include <fcntl.h>
 
-int debug_message_save(char sn[DEVICE_SN_LEN*2+1], char *data)
+int debug_message_save(unsigned char sn[DEVICE_SN_LEN], char *data)
 {
 	char buffer[256];
 	struct tm  *tp; 
@@ -149,7 +158,7 @@ int debug_message_save(char sn[DEVICE_SN_LEN*2+1], char *data)
 
 	/* file name */
 	char file_name[64];
-	sprintf(file_name, "log/%s.log", sn);
+	sprintf(file_name, "log/%s.log", device_sn_to_string(sn));
 
 	/* save to file */
 	int fd = open(file_name, O_RDWR|O_CREAT|O_APPEND, 0777);
@@ -194,7 +203,7 @@ int debug_info_deal(int fd, cJSON *root)
 		return -1;
 	}
 	
-	strncpy(device.sn, item->valuestring, sizeof(device.sn));
+	device_sn_parse(item->valuestring, device.sn);
 
 	/* check if the device is exist */
 	if (device_find_by_sn(device.sn, device_head) == NULL)
@@ -232,6 +241,13 @@ int debug_info_deal(int fd, cJSON *root)
 	return 0;
 }
 
+void device_sn_parse(const char *sn_string, unsigned char sn[DEVICE_SN_LEN])
+{
+	sscanf(sn_string, "%02x%02x%02x%02x%02x%02x%02x%02x", &sn[0],&sn[1],&sn[2],&sn[3],&sn[4],&sn[5],&sn[6],&sn[7]);
+
+	//debug("device", "%02x%02x%02x%02x%02x%02x%02x%02x", sn[0],sn[1],sn[2],sn[3],sn[4],sn[5],sn[6],sn[7]);
+}
+
 static void ipcDeviceConfigEntry(int fd, int op, void *data)
 {
     int ackStatus;
@@ -253,7 +269,7 @@ static void ipcDeviceConfigEntry(int fd, int op, void *data)
 					return ;
 				}
 
-				strncpy(device.sn, item->valuestring, sizeof(device.sn));
+				device_sn_parse(item->valuestring, device.sn);
 
 				if (newDeviceAdd(fd, &device) < 0)
 				{
@@ -309,21 +325,21 @@ static void ipcNDBConfigEntry(int fd, int op, void *data)
 					return ;
 				}
 
-				strncpy(device.sn, item->valuestring, sizeof(device.sn));
+				device_sn_parse(item->valuestring, device.sn);
 
 				if ((pdev=device_find_by_sn(device.sn, device_head)) == NULL)
 				{
 					debug("device", "Device %s didn`t registered!\n", device.sn);
-					return 0;
+					return ;
 				}
 
 				if (ipc_NDB_main_set(root, pdev) < 0)
 				{
-					debug("device", "failed to send message to device %s by socket %d\n", pdev->sn, pdev->fd);
+					debug("device", "failed to send message to device %s by socket %d\n", device_sn_to_string(pdev->sn), pdev->fd);
 				}
 				else
 				{
-					debug("device", "send message to device %s success", pdev->sn);
+					debug("device", "send message to device %s success", device_sn_to_string(pdev->sn));
 				}
 				
             }

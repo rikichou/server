@@ -93,7 +93,7 @@ int ipcDeviceSimpleResponse(int sock, int status)
 		debug("ipc", "Failed to get root object!");
 		return -1;
 	}
-	
+
 	cJSON_AddNumberToObject(root, "packetType", IPC_RESPONSE);
 	cJSON_AddNumberToObject(root, "ack", status);
 
@@ -107,9 +107,10 @@ int ipcDeviceSimpleResponse(int sock, int status)
 		free(jsonString);
 	}
 
+
 	cJSON_Delete(root);
 
-	return ret;
+	return 0;
 }
 
 int ipcResponse
@@ -727,7 +728,6 @@ static void ipcDevicePacketProcess(void *data)
 			debug("ipc", "Failed to get operation from packet!");
 			return ;
 		}
-		
         function(ipc->fd, item->valueint, (void *)root);
     }
     else 
@@ -736,7 +736,6 @@ static void ipcDevicePacketProcess(void *data)
         
         //ipcResponse(ipc->fd, (ipcPacket_t *)&hdr, IPC_STATUS_UNDEF, 0, 0, NULL);        
     }
-
 	cJSON_Delete(root);
 }
 
