@@ -67,7 +67,7 @@ int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned int 
 
 	memset(msg_buff, 0, sizeof(msg_buff));
 
-	snprintf(msg_buff, sizeof(msg_buff), "%s,%d,%f\n", device_sn_to_string(sn), subdevice, temp);
+	snprintf(msg_buff, sizeof(msg_buff), "%s,%d,%s\n", device_sn_to_string(sn), subdevice, string);
 
 	int ret = ipcDeviceRequest(fd, msg_buff);
 
