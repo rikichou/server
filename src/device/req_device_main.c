@@ -99,7 +99,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 }
 
 
-int ipc_NDB_data_update(int fd, int subdevice, char *string, unsigned int sn[DEVICE_SN_LEN])
+int ipc_NDB_data_update(int fd, char *string, unsigned int sn[DEVICE_SN_LEN])
 {
 	float temp = 11.23;
 	int device_num;
