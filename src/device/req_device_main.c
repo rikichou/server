@@ -2,6 +2,7 @@
 #include "device_main.h"
 #include "libipc/ipcClient.h"
 #include "lib/debug.h"
+#include "lib/stringHelper.h"
 #include "libcjson/cJSON.h"
 
 const char *device_sn_to_string(unsigned int sn[DEVICE_SN_LEN]);
@@ -57,22 +58,55 @@ int ipc_NDB_main_set(cJSON *root, device_info_t *info)
 	return 0;
 }
 
-int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned int sn[DEVICE_SN_LEN])
+#define NDB_MAX_CH_DATA	50
+
+int NDB_data_parse(char *string, char *msg_buff, int size)
+{
+	int num, i, len=0;
+	char *var[NDB_MAX_CH_DATA];
+
+	num = stringSplit(string, ';', var, sizeof(var)/sizeof(var[0]));
+
+	for (i = 0; i < num; i ++)
+	{
+		int d1,d2,d3,d4,d5,d6;
+		char tmp[128];
+		
+		sscanf(var[i], "%d,%d,%d,%2d%2d%2d%s", &d1,&d2,&d3,&d4,&d5,&d6,tmp);
+		printf("%d %d %d %d %d %d %s\n", d1,d2,d3,d4,d5,d6,tmp);
+		
+		if (d6 == 4)
+		{
+			int q;
+			float data;
+			sscanf(tmp, "%08x", &q);
+			data = *((float *)(&q));
+			len += snprintf(msg_buff+len, size-len, "%d,%d,%d,%d,%f;", d1,d2,d3,d4,data);
+		}
+		else if (d6 == 8)
+		{
+			long q;
+			double data;
+			
+			sscanf(tmp, "%16lx", &q);
+			data = *((double *)(&q));
+			
+			len += snprintf(msg_buff+len, size-len, "%d,%d,%d,%d,%lf;", d1,d2,d3,d4,data);
+		}
+	}
+
+	return num;
+}
+
+
+int ipc_NDB_data_update(int fd, int subdevice, char *string, unsigned int sn[DEVICE_SN_LEN])
 {
 	float temp = 11.23;
 	int device_num;
 	char msg_buff[128];
 
 	/*.how to get temperature by rules */
-
-	memset(msg_buff, 0, sizeof(msg_buff));
-#if 0
-	snprintf(msg_buff, sizeof(msg_buff), "%s,%d,%s\n", device_sn_to_string(sn), subdevice, string);
-#endif
-
-	debug("device", "%s\n", string);
-
-	snprintf(msg_buff, sizeof(msg_buff), "zhangliguo da sha cha,hahahahaha");
+	NDB_data_parse(string, msg_buff, sizeof(msg_buff)/sizeof(msg_buff[0]));
 
 	int ret = ipcDeviceRequest(fd, msg_buff);
 
