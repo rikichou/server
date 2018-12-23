@@ -81,7 +81,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 			float data;
 			sscanf(tmp, "%08x", &q);
 			data = *((float *)(&q));
-			len += snprintf(msg_buff+len, size-len, "%d,%d,%d,%d,%f;", d1,d2,d3,d4,data);
+			len += snprintf(msg_buff+len, size-len, "\"%d\",\"%d\",\"%d\",\"%d\",\"%f\"\r\n", d1,d2,d3,d4,data);
 		}
 		else if (d6 == 8)
 		{
@@ -91,7 +91,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 			sscanf(tmp, "%16lx", &q);
 			data = *((double *)(&q));
 			
-			len += snprintf(msg_buff+len, size-len, "%d,%d,%d,%d,%lf;", d1,d2,d3,d4,data);
+			len += snprintf(msg_buff+len, size-len, "\"%d\",\"%d\",\"%d\",\"%d\",\"%lf\"\r\n", d1,d2,d3,d4,data);
 		}
 	}
 
