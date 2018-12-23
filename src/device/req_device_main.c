@@ -79,6 +79,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 
 		if (ret != 7)
 		{
+			printf("ret  %d\n", ret);
 			continue;
 		}
 		
