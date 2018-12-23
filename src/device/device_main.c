@@ -219,19 +219,6 @@ int debug_info_deal(int fd, cJSON *root)
 		return -2;
 	}
 
-	/*.get sub device num */
-	int subdevice;
-
-	item = cJSON_GetObjectItem(root, "subdevice");
-
-	if (!item)
-	{
-		debug("device", "No subdevice!");
-		return -3;
-	}
-
-	subdevice = item->valueint;
-
 	/* get temperature */
 	item = cJSON_GetObjectItem(root, "data");
 
@@ -243,7 +230,7 @@ int debug_info_deal(int fd, cJSON *root)
 
 
 	/* save message buffer */
-	ipc_NDB_data_update(NDB_fd, subdevice, item->valuestring, device.sn);
+	ipc_NDB_data_update(NDB_fd, item->valuestring, device.sn);
 
 	return 0;
 }
