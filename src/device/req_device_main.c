@@ -60,6 +60,20 @@ int ipc_NDB_main_set(cJSON *root, device_info_t *info)
 
 #define NDB_MAX_CH_DATA	50
 
+#include<time.h>
+
+void time_string_get(char *buff, int size)
+{
+	time_t timep;
+	struct tm *p;
+	time (&timep);
+	p=gmtime(&timep);
+
+	snprintf(buff, size, "%d:%d:%d_%d:%d:%d", 1900+p->tm_year, 1+p->tm_mon, p->tm_mday, 8+p->tm_hour, p->tm_min, p->tm_sec);	
+
+	return ;
+}
+
 int NDB_data_parse(char *string, char *msg_buff, int size)
 {
 	int num, i, len=0;
@@ -88,21 +102,28 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 		
 		if (d6 == 4)
 		{
+			char t_buff[128];
 			int q;
 			float data;
 			sscanf(tmp, "%08x", &q);
 			data = *((float *)(&q));
-			len += snprintf(msg_buff+len, size-len, "\"%d\",\"%d\",\"%d\",\"%d\",\"%f\"\r\n", d1,d2,d3,d4,data);
+			
+			time_string_get(t_buff, sizeof(t_buff)/sizeof(t_buff[0]));
+
+			len += snprintf(msg_buff+len, size-len, "\"%s\", \"%d\", \"%d\",\"%d\",\"%d\",\"%d\",\"%f\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
 		}
 		else if (d6 == 8)
 		{
 			long q;
 			double data;
+			char t_buff[128];
 			
 			sscanf(tmp, "%16lx", &q);
 			data = *((double *)(&q));
+
+			time_string_get(t_buff, sizeof(t_buff)/sizeof(t_buff[0]));
 			
-			len += snprintf(msg_buff+len, size-len, "\"%d\",\"%d\",\"%d\",\"%d\",\"%lf\"\r\n", d1,d2,d3,d4,data);
+			len += snprintf(msg_buff+len, size-len, "\"%s\", \"%d\", \"%d\",\"%d\",\"%d\",\"%d\",\"%lf\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
 		}
 	}
 
