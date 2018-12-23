@@ -75,8 +75,14 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 		char tmp[128];
 
 		memset(tmp, 0, sizeof(tmp));
-		sscanf(var[i], "%d,%d,%d,%2d%2d%2d%s", &d1,&d2,&d3,&d4,&d5,&d6,tmp);
-		printf("%d %d %d %d %d %d %s\n", d1,d2,d3,d4,d5,d6,tmp);
+		int ret = sscanf(var[i], "%d,%d,%d,%2d%2d%2d%s", &d1,&d2,&d3,&d4,&d5,&d6,tmp);
+
+		if (ret != 7)
+		{
+			continue;
+		}
+		
+		printf("%d %d %d %d %d %d %s, ret:%d\n", d1,d2,d3,d4,d5,d6,tmp, ret);
 		debug("device", "%s", tmp);
 		
 		if (d6 == 4)
