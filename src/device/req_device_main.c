@@ -110,7 +110,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 			
 			time_string_get(t_buff, sizeof(t_buff)/sizeof(t_buff[0]));
 
-			len += snprintf(msg_buff+len, size-len, "\"%s\", \"%d\", \"%d\",\"%d\",\"%d\",\"%d\",\"%f\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
+			len += snprintf(msg_buff+len, size-len, "\"%s\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\",\"%f\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
 		}
 		else if (d6 == 8)
 		{
@@ -123,7 +123,7 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 
 			time_string_get(t_buff, sizeof(t_buff)/sizeof(t_buff[0]));
 			
-			len += snprintf(msg_buff+len, size-len, "\"%s\", \"%d\", \"%d\",\"%d\",\"%d\",\"%d\",\"%lf\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
+			len += snprintf(msg_buff+len, size-len, "\"%s\",\"%d\",\"%d\",\"%d\",\"%d\",\"%d\",\"%lf\"\r\n", t_buff, i+1, d1,d2,d3,d4,data);
 		}
 	}
 
