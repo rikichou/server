@@ -67,13 +67,17 @@ int NDB_data_parse(char *string, char *msg_buff, int size)
 
 	num = stringSplit(string, ';', var, sizeof(var)/sizeof(var[0]));
 
+	debug("device", "Have %d items!", num);
+
 	for (i = 0; i < num; i ++)
 	{
 		int d1,d2,d3,d4,d5,d6;
 		char tmp[128];
-		
+
+		memset(tmp, 0, sizeof(tmp));
 		sscanf(var[i], "%d,%d,%d,%2d%2d%2d%s", &d1,&d2,&d3,&d4,&d5,&d6,tmp);
 		printf("%d %d %d %d %d %d %s\n", d1,d2,d3,d4,d5,d6,tmp);
+		debug("device", "%s", tmp);
 		
 		if (d6 == 4)
 		{
