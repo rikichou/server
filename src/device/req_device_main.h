@@ -7,6 +7,6 @@
 
 int ipc_device_main_set(device_info_t *info);
 int ipc_NDB_main_set(cJSON *root, device_info_t *info);
-int ipc_NDB_data_update(int fd, int subdevice, const char *string, unsigned int sn[DEVICE_SN_LEN]);
+int ipc_NDB_data_update(int fd, const char *string, unsigned int sn[DEVICE_SN_LEN]);
 
 #endif
