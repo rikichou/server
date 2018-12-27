@@ -80,6 +80,7 @@ device_info_t *device_add(device_info_t **phead, device_t *pDev, int fd)
 
 	/* fill data */
 	p->fd = fd;
+	p->next = NULL;
 	memcpy(p->sn, pDev->sn, sizeof(p->sn));
 	
 
@@ -117,6 +118,44 @@ int debug_cmd_send(void *data, int reason)
 	return TIMER_REMOVE;
 }
 
+void device_info_updata(device_info_t *dev_info, device_t *dev, int fd)
+{
+	dev_info->fd = fd;
+	debug("device", "update device fd %d", fd);
+}
+
+int deviceRemove(int *fd)
+{
+	int sock = *fd;
+	device_info_t *p = device_head;
+	device_info_t *pre = p;
+
+	while (p)
+	{
+		if (sock == p->fd)
+		{
+			if (p == device_head)
+			{
+				device_head = NULL;
+			}
+			else
+			{
+				pre->next = p->next;
+			}
+
+			debug("device", "Remove device %s", device_sn_to_string(p->sn));
+			free(p);
+
+			return 0;
+		}
+		
+		p = p->next;
+	}
+
+	debug("device", "(device remove)not found device fd %d", sock);
+	return 0;
+}
+
 int newDeviceAdd(int fd, device_t *pDev)
 {
 	device_info_t *pdev_info = NULL;
@@ -126,6 +165,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 	/* check if the device is exist */
 	if ((pdev_info=device_find_by_sn(pDev->sn, device_head)) != NULL)
 	{
+		device_info_updata(pdev_info, pDev, fd);
 		debug("device", "Device already exists!\n");
 		/* JUST FOR DEBUG : register timer handle to send command to device */
 		timerAdd("device_cmd_set_timer", 0, 1000, debug_cmd_send, NULL, pdev_info);		
@@ -140,7 +180,7 @@ int newDeviceAdd(int fd, device_t *pDev)
 	}
 	else
 	{
-		debug("device", "Add device (%s) success", device_sn_to_string(pDev->sn));
+		debug("device", "Add device (%s  fd:%d) success", device_sn_to_string(pDev->sn), fd);
 	}
 
 	/* JUST FOR DEBUG : register timer handle to send command to device */
@@ -326,7 +366,7 @@ static void ipcNDBConfigEntry(int fd, int op, void *data)
 				}
 				else
 				{
-					debug("device", "send message to device %s success", device_sn_to_string(pdev->sn));
+					debug("device", "send message to device %s(socket %d) success", device_sn_to_string(pdev->sn), pdev->fd);
 				}
 				
             }

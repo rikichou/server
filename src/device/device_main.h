@@ -15,6 +15,7 @@ typedef struct device_info
 	struct device_info *next;
 }device_info_t;
 
+int deviceRemove(int *fd);
 void devicePreInit();
 
 #endif

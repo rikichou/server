@@ -205,11 +205,17 @@ static int s_ipcSocket = -1;
 static int s_ipcDeviceSocket = -1;
 static int s_ipcNDBSocket = -1, s_ipcNDBClientSocket = -1;
 
-
+typedef enum
+{
+	IPC_CLIENT_TYPE_NORMAL=0,
+	IPC_CLIENT_TYPE_DEVICE=99
+}e_ipcClientType;
 
 struct ipcConnection
 {
     int     fd;
+	int     fdBack;
+	int     clientType;
     char    *name;
     void    *handle;
     struct ipcConnection *next;
@@ -325,6 +331,15 @@ void ipcConnectionClean(int all)
                 close(p->fd);
 				debug("ipc", "close client %d\n", p->fd);
             }
+
+		    /* ADD CLEAN FOR DEVICE */
+			if (p->clientType == IPC_CLIENT_TYPE_DEVICE)
+			{
+				debug("ipc", "call deviceremove(%d)", p->fdBack);
+				deviceRemove(&(p->fdBack));
+			}
+			
+			
             threadRemoveListeningFile(p->handle);            
             free(p->name);
             free(p);
@@ -526,6 +541,7 @@ void ipcReceive(void *data)
     debug("ipc", "ipcAccept(%d) return name:%s", s_ipcSocket, name);
     
     client->fd = fd;
+	client->clientType = IPC_CLIENT_TYPE_NORMAL;
     client->name = strdup(name);
     client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcPacketProcess);
     client->next= s_ipcConnectionHead;
@@ -765,6 +781,8 @@ void ipcDeviceReceive(void *data)
     debug("ipc", "ipcAccept(%d) return name:%s", s_ipcDeviceSocket, name);
     
     client->fd = fd;
+	client->fdBack = fd;
+	client->clientType = IPC_CLIENT_TYPE_DEVICE;
     client->name = strdup(name);       
     client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcDevicePacketProcess);
     client->next= s_ipcConnectionHead;
@@ -930,10 +948,11 @@ void ipcNDBReceive(void *data)
         return ;
     }
     
-    debug("ipc", "ipcAccept(%d) return name:%s", s_ipcNDBSocket, name);
+    debug("ipc", "ipcAccept(%d),client is (%d)return name:%s", s_ipcNDBSocket, fd, name);
 
 	s_ipcNDBClientSocket = fd;
     client->fd = fd;
+	client->clientType = IPC_CLIENT_TYPE_NORMAL;
     client->name = strdup(name);       
     client->handle = threadAddListeningFile(client->name, client->fd,  client, ipcNDBPacketProcess);
     client->next= s_ipcConnectionHead;
